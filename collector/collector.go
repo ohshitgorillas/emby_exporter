@@ -2,6 +2,7 @@ package collector
 
 import (
 	"log"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/ohshitgorillas/emby_exporter/emby"
@@ -30,6 +31,9 @@ type Collector struct {
 	AudioChannels      *prometheus.Desc
 
 	LibraryItemCount    *prometheus.Desc
+
+	Up             *prometheus.Desc
+	ScrapeDuration *prometheus.Desc
 
 	ScheduledTaskInfo            *prometheus.Desc
 	ScheduledTaskLastDuration    *prometheus.Desc
@@ -143,6 +147,20 @@ func New(ss StatusSource) prometheus.Collector {
 			prometheus.BuildFQName(namespace, "audio", "channels"),
 			"Number of channels in original audio file.",
 			[]string{"server", "user"},
+			nil,
+		),
+
+		Up: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "up"),
+			"1 if the last scrape of the Emby API succeeded, 0 otherwise.",
+			nil,
+			nil,
+		),
+
+		ScrapeDuration: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "scrape", "duration_seconds"),
+			"Duration of the last scrape of the Emby API in seconds.",
+			nil,
 			nil,
 		),
 
@@ -270,6 +288,8 @@ func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
 		c.VideoBitRate,
 		c.AudioBitRate,
 		c.AudioChannels,
+		c.Up,
+		c.ScrapeDuration,
 		c.LibraryItemCount,
 		c.ScheduledTaskInfo,
 		c.ScheduledTaskLastDuration,
@@ -292,9 +312,20 @@ func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (c *Collector) Collect(ch chan<- prometheus.Metric) {
+	start := time.Now()
 	s, err := c.ss.Status()
+	duration := time.Since(start).Seconds()
+
+	up := 1.0
 	if err != nil {
+		up = 0.0
 		log.Printf("failed collecting emby metrics: %v", err)
+	}
+
+	ch <- prometheus.MustNewConstMetric(c.Up, prometheus.GaugeValue, up)
+	ch <- prometheus.MustNewConstMetric(c.ScrapeDuration, prometheus.GaugeValue, duration)
+
+	if err != nil {
 		ch <- prometheus.NewInvalidMetric(c.Info, err)
 		return
 	}
