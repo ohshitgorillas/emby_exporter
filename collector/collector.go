@@ -31,6 +31,11 @@ type Collector struct {
 
 	LibraryItemCount    *prometheus.Desc
 
+	ScheduledTaskInfo            *prometheus.Desc
+	ScheduledTaskLastDuration    *prometheus.Desc
+	ScheduledTaskLastRunTimestamp *prometheus.Desc
+	PluginUpdateAvailable        *prometheus.Desc
+
 	SessionInfo         *prometheus.Desc
 	SessionPositionSec  *prometheus.Desc
 	SessionRuntimeSec   *prometheus.Desc
@@ -148,6 +153,34 @@ func New(ss StatusSource) prometheus.Collector {
 			nil,
 		),
 
+		ScheduledTaskInfo: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "scheduled_task", "info"),
+			"Scheduled task metadata. Always 1.",
+			[]string{"server", "task", "category", "state", "last_status"},
+			nil,
+		),
+
+		ScheduledTaskLastDuration: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "scheduled_task", "last_duration_seconds"),
+			"Duration in seconds of the most recent run of a scheduled task.",
+			[]string{"server", "task"},
+			nil,
+		),
+
+		ScheduledTaskLastRunTimestamp: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "scheduled_task", "last_run_timestamp_seconds"),
+			"Unix timestamp of the most recent run of a scheduled task.",
+			[]string{"server", "task"},
+			nil,
+		),
+
+		PluginUpdateAvailable: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "plugin", "update_available"),
+			"Available update for an installed plugin. Always 1.",
+			[]string{"server", "name", "version"},
+			nil,
+		),
+
 		SessionInfo: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "session", "info"),
 			"Active playback session metadata. Always 1.",
@@ -238,6 +271,10 @@ func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
 		c.AudioBitRate,
 		c.AudioChannels,
 		c.LibraryItemCount,
+		c.ScheduledTaskInfo,
+		c.ScheduledTaskLastDuration,
+		c.ScheduledTaskLastRunTimestamp,
+		c.PluginUpdateAvailable,
 		c.SessionInfo,
 		c.SessionPositionSec,
 		c.SessionRuntimeSec,
@@ -389,6 +426,38 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 		emit("game_system", lib.Counts.GameSystemCount)
 		emit("program", lib.Counts.ProgramCount)
 		emit("item", lib.Counts.ItemCount)
+	}
+
+	for _, t := range s.ScheduledTasks {
+		ch <- prometheus.MustNewConstMetric(
+			c.ScheduledTaskInfo,
+			prometheus.GaugeValue,
+			1,
+			s.ServerName, t.Name, t.Category, t.State, t.LastStatus,
+		)
+		if t.HasResult {
+			ch <- prometheus.MustNewConstMetric(
+				c.ScheduledTaskLastDuration,
+				prometheus.GaugeValue,
+				t.LastDurationSec,
+				s.ServerName, t.Name,
+			)
+			ch <- prometheus.MustNewConstMetric(
+				c.ScheduledTaskLastRunTimestamp,
+				prometheus.GaugeValue,
+				t.LastRunUnix,
+				s.ServerName, t.Name,
+			)
+		}
+	}
+
+	for _, p := range s.PluginUpdates {
+		ch <- prometheus.MustNewConstMetric(
+			c.PluginUpdateAvailable,
+			prometheus.GaugeValue,
+			1,
+			s.ServerName, p.Name, p.Version,
+		)
 	}
 
 	for _, sess := range s.Sessions {

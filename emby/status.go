@@ -2,6 +2,7 @@ package emby
 
 import (
 	"strings"
+	"time"
 )
 
 type Status struct {
@@ -27,6 +28,24 @@ type Status struct {
 
 	Sessions  []SessionDetail
 	Libraries []LibraryDetail
+
+	ScheduledTasks  []ScheduledTaskDetail
+	PluginUpdates   []PluginUpdateDetail
+}
+
+type ScheduledTaskDetail struct {
+	Name              string
+	Category          string
+	State             string
+	LastStatus        string
+	LastDurationSec   float64
+	LastRunUnix       float64
+	HasResult         bool
+}
+
+type PluginUpdateDetail struct {
+	Name    string
+	Version string
 }
 
 type LibraryDetail struct {
@@ -194,6 +213,47 @@ func (c *Client) Status() (*Status, error) {
 			}
 		}
 		s.Sessions = append(s.Sessions, detail)
+	}
+
+	tasks, err := c.GetScheduledTasks()
+	if err != nil {
+		return nil, err
+	}
+	for _, t := range tasks {
+		if t.IsHidden {
+			continue
+		}
+		detail := ScheduledTaskDetail{
+			Name:     t.Name,
+			Category: t.Category,
+			State:    t.State,
+		}
+		if r := t.LastExecutionResult; r != nil {
+			detail.HasResult = true
+			detail.LastStatus = r.Status
+			start, errStart := time.Parse(time.RFC3339Nano, r.StartTimeUtc)
+			end, errEnd := time.Parse(time.RFC3339Nano, r.EndTimeUtc)
+			if errStart == nil && errEnd == nil {
+				detail.LastDurationSec = end.Sub(start).Seconds()
+				detail.LastRunUnix = float64(end.Unix())
+			}
+		}
+		s.ScheduledTasks = append(s.ScheduledTasks, detail)
+	}
+
+	pkgs, err := c.GetPackageUpdates()
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range pkgs {
+		ver := ""
+		if len(p.Versions) > 0 {
+			ver = p.Versions[0].Version
+		}
+		s.PluginUpdates = append(s.PluginUpdates, PluginUpdateDetail{
+			Name:    p.Name,
+			Version: ver,
+		})
 	}
 
 	return s, nil
