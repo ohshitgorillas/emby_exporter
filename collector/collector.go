@@ -4,7 +4,7 @@ import (
 	"log"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/williamclot/emby_exporter/emby"
+	"github.com/ohshitgorillas/emby_exporter/emby"
 )
 
 var _ StatusSource = &emby.Client{}

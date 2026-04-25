@@ -1,4 +1,4 @@
-module github.com/williamclot/emby_exporter
+module github.com/ohshitgorillas/emby_exporter
 
 go 1.17
 

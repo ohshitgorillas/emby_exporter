@@ -11,8 +11,8 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/williamclot/emby_exporter/collector"
-	"github.com/williamclot/emby_exporter/emby"
+	"github.com/ohshitgorillas/emby_exporter/collector"
+	"github.com/ohshitgorillas/emby_exporter/emby"
 )
 
 var (

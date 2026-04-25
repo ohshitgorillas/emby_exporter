@@ -44,7 +44,7 @@ OPTIONS:
 ```yaml
 services:
   emby-exporter:
-    image: williamclot/emby_exporter
+    image: ohshitgorillas/emby_exporter
     container_name: emby-exporter
     restart: unless-stopped
     command:

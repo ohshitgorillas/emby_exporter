@@ -11,7 +11,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/williamclot/emby_exporter/emby"
+	"github.com/ohshitgorillas/emby_exporter/emby"
 )
 
 func TestEmbyCollector(t *testing.T) {
@@ -75,7 +75,7 @@ func TestEmbyCollector(t *testing.T) {
 				regexp.MustCompile(`emby_audio_bitrate{server="mars",user="bill"} 10200`),
 				regexp.MustCompile(`emby_audio_bitrate{server="mars",user="joe"} 10300`),
 				regexp.MustCompile(`emby_audio_channels{server="mars",user="bill"} 2`),
-				regexp.MustCompile(`emby_audio_channels {server="mars",user="joe"} 5`),
+				regexp.MustCompile(`emby_audio_channels{server="mars",user="joe"} 5`),
 			},
 		},
 	}
