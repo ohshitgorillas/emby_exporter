@@ -25,7 +25,14 @@ type Status struct {
 	AudioChannels      map[string]int
 	AudioBitRate       map[string]int
 
-	Sessions []SessionDetail
+	Sessions  []SessionDetail
+	Libraries []LibraryDetail
+}
+
+type LibraryDetail struct {
+	Name           string
+	CollectionType string
+	Counts         LibraryItems
 }
 
 type SessionDetail struct {
@@ -94,6 +101,22 @@ func (c *Client) Status() (*Status, error) {
 	s.MovieCount = libary.MovieCount
 	s.SeriesCount = libary.SeriesCount
 	s.EpisodeCount = libary.EpisodeCount
+
+	folders, err := c.GetMediaFolders()
+	if err != nil {
+		return nil, err
+	}
+	for _, f := range folders {
+		counts, err := c.GetLibraryItemsForParent(f.Id)
+		if err != nil {
+			return nil, err
+		}
+		s.Libraries = append(s.Libraries, LibraryDetail{
+			Name:           f.Name,
+			CollectionType: f.CollectionType,
+			Counts:         *counts,
+		})
+	}
 
 	users, err := c.GetUsers()
 	if err != nil {

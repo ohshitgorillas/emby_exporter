@@ -29,6 +29,8 @@ type Collector struct {
 	AudioBitRate       *prometheus.Desc
 	AudioChannels      *prometheus.Desc
 
+	LibraryItemCount    *prometheus.Desc
+
 	SessionInfo         *prometheus.Desc
 	SessionPositionSec  *prometheus.Desc
 	SessionRuntimeSec   *prometheus.Desc
@@ -139,6 +141,13 @@ func New(ss StatusSource) prometheus.Collector {
 			nil,
 		),
 
+		LibraryItemCount: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "library", "item_count"),
+			"Number of items in a library, broken down by item type.",
+			[]string{"server", "library", "collection_type", "type"},
+			nil,
+		),
+
 		SessionInfo: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "session", "info"),
 			"Active playback session metadata. Always 1.",
@@ -228,6 +237,7 @@ func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
 		c.VideoBitRate,
 		c.AudioBitRate,
 		c.AudioChannels,
+		c.LibraryItemCount,
 		c.SessionInfo,
 		c.SessionPositionSec,
 		c.SessionRuntimeSec,
@@ -351,6 +361,34 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 			float64(v),
 			s.ServerName, k,
 		)
+	}
+
+	for _, lib := range s.Libraries {
+		emit := func(typ string, count int) {
+			if count == 0 {
+				return
+			}
+			ch <- prometheus.MustNewConstMetric(
+				c.LibraryItemCount,
+				prometheus.GaugeValue,
+				float64(count),
+				s.ServerName, lib.Name, lib.CollectionType, typ,
+			)
+		}
+		emit("movie", lib.Counts.MovieCount)
+		emit("series", lib.Counts.SeriesCount)
+		emit("episode", lib.Counts.EpisodeCount)
+		emit("song", lib.Counts.SongCount)
+		emit("album", lib.Counts.AlbumCount)
+		emit("artist", lib.Counts.ArtistCount)
+		emit("music_video", lib.Counts.MusicVideoCount)
+		emit("trailer", lib.Counts.TrailerCount)
+		emit("box_set", lib.Counts.BoxSetCount)
+		emit("book", lib.Counts.BookCount)
+		emit("game", lib.Counts.GameCount)
+		emit("game_system", lib.Counts.GameSystemCount)
+		emit("program", lib.Counts.ProgramCount)
+		emit("item", lib.Counts.ItemCount)
 	}
 
 	for _, sess := range s.Sessions {
