@@ -78,7 +78,7 @@ func (c *Client) Status() (*Status, error) {
 	for _, session := range *sessions {
 		if session.TranscodingInfo != nil {
 			s.TranscodingCount++
-			s.VideoBitRate[strings.ToLower(session.UserName)] += int(session.TranscodingInfo.Bitrate)
+			s.TranscodingBitRate[strings.ToLower(session.UserName)] += int(session.TranscodingInfo.Bitrate)
 		}
 
 		if len(session.NowPlayingItem.MediaStreams) > 0 {
