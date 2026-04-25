@@ -29,6 +29,17 @@ type Collector struct {
 	AudioBitRate       *prometheus.Desc
 	AudioChannels      *prometheus.Desc
 
+	SessionInfo         *prometheus.Desc
+	SessionPositionSec  *prometheus.Desc
+	SessionRuntimeSec   *prometheus.Desc
+	TranscodeInfo       *prometheus.Desc
+	TranscodeBitRate    *prometheus.Desc
+	TranscodeCompletion *prometheus.Desc
+	TranscodeCpuUsage   *prometheus.Desc
+	TranscodeFramerate  *prometheus.Desc
+	TranscodeWidth      *prometheus.Desc
+	TranscodeHeight     *prometheus.Desc
+
 	ss StatusSource
 }
 
@@ -128,6 +139,76 @@ func New(ss StatusSource) prometheus.Collector {
 			nil,
 		),
 
+		SessionInfo: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "session", "info"),
+			"Active playback session metadata. Always 1.",
+			[]string{"server", "session_id", "user", "client", "device", "device_type", "app_version", "media_type", "play_method", "is_paused", "item_type"},
+			nil,
+		),
+
+		SessionPositionSec: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "session", "position_seconds"),
+			"Current playback position in seconds.",
+			[]string{"server", "session_id", "user"},
+			nil,
+		),
+
+		SessionRuntimeSec: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "session", "runtime_seconds"),
+			"Total runtime of the now-playing item in seconds.",
+			[]string{"server", "session_id", "user"},
+			nil,
+		),
+
+		TranscodeInfo: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "transcode", "info"),
+			"Active transcode session metadata. Always 1.",
+			[]string{"server", "session_id", "user", "hw_decoder", "hw_encoder", "video_codec", "audio_codec", "container", "reasons"},
+			nil,
+		),
+
+		TranscodeBitRate: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "transcode", "bitrate"),
+			"Bitrate of an active transcode in bits per second.",
+			[]string{"server", "session_id", "user"},
+			nil,
+		),
+
+		TranscodeCompletion: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "transcode", "completion_percent"),
+			"Completion percentage of an active transcode.",
+			[]string{"server", "session_id", "user"},
+			nil,
+		),
+
+		TranscodeCpuUsage: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "transcode", "cpu_usage"),
+			"Current CPU usage of an active transcode (Emby-reported, fractional).",
+			[]string{"server", "session_id", "user"},
+			nil,
+		),
+
+		TranscodeFramerate: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "transcode", "framerate"),
+			"Current framerate of an active transcode.",
+			[]string{"server", "session_id", "user"},
+			nil,
+		),
+
+		TranscodeWidth: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "transcode", "width_pixels"),
+			"Output width of an active transcode in pixels.",
+			[]string{"server", "session_id", "user"},
+			nil,
+		),
+
+		TranscodeHeight: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "transcode", "height_pixels"),
+			"Output height of an active transcode in pixels.",
+			[]string{"server", "session_id", "user"},
+			nil,
+		),
+
 		ss: ss,
 	}
 }
@@ -147,6 +228,16 @@ func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
 		c.VideoBitRate,
 		c.AudioBitRate,
 		c.AudioChannels,
+		c.SessionInfo,
+		c.SessionPositionSec,
+		c.SessionRuntimeSec,
+		c.TranscodeInfo,
+		c.TranscodeBitRate,
+		c.TranscodeCompletion,
+		c.TranscodeCpuUsage,
+		c.TranscodeFramerate,
+		c.TranscodeWidth,
+		c.TranscodeHeight,
 	}
 	for _, d := range ds {
 		ch <- d
@@ -260,5 +351,67 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 			float64(v),
 			s.ServerName, k,
 		)
+	}
+
+	for _, sess := range s.Sessions {
+		paused := "false"
+		if sess.IsPaused {
+			paused = "true"
+		}
+		ch <- prometheus.MustNewConstMetric(
+			c.SessionInfo,
+			prometheus.GaugeValue,
+			1,
+			s.ServerName, sess.SessionId, sess.UserName, sess.Client,
+			sess.DeviceName, sess.DeviceType, sess.AppVersion,
+			sess.MediaType, sess.PlayMethod, paused, sess.ItemType,
+		)
+		ch <- prometheus.MustNewConstMetric(
+			c.SessionPositionSec,
+			prometheus.GaugeValue,
+			sess.PositionSec,
+			s.ServerName, sess.SessionId, sess.UserName,
+		)
+		ch <- prometheus.MustNewConstMetric(
+			c.SessionRuntimeSec,
+			prometheus.GaugeValue,
+			sess.RuntimeSec,
+			s.ServerName, sess.SessionId, sess.UserName,
+		)
+
+		if t := sess.Transcoding; t != nil {
+			ch <- prometheus.MustNewConstMetric(
+				c.TranscodeInfo,
+				prometheus.GaugeValue,
+				1,
+				s.ServerName, sess.SessionId, sess.UserName,
+				t.HwDecoder, t.HwEncoder, t.VideoCodec, t.AudioCodec,
+				t.Container, t.Reasons,
+			)
+			ch <- prometheus.MustNewConstMetric(
+				c.TranscodeBitRate, prometheus.GaugeValue, float64(t.Bitrate),
+				s.ServerName, sess.SessionId, sess.UserName,
+			)
+			ch <- prometheus.MustNewConstMetric(
+				c.TranscodeCompletion, prometheus.GaugeValue, t.Completion,
+				s.ServerName, sess.SessionId, sess.UserName,
+			)
+			ch <- prometheus.MustNewConstMetric(
+				c.TranscodeCpuUsage, prometheus.GaugeValue, t.CpuUsage,
+				s.ServerName, sess.SessionId, sess.UserName,
+			)
+			ch <- prometheus.MustNewConstMetric(
+				c.TranscodeFramerate, prometheus.GaugeValue, t.Framerate,
+				s.ServerName, sess.SessionId, sess.UserName,
+			)
+			ch <- prometheus.MustNewConstMetric(
+				c.TranscodeWidth, prometheus.GaugeValue, float64(t.Width),
+				s.ServerName, sess.SessionId, sess.UserName,
+			)
+			ch <- prometheus.MustNewConstMetric(
+				c.TranscodeHeight, prometheus.GaugeValue, float64(t.Height),
+				s.ServerName, sess.SessionId, sess.UserName,
+			)
+		}
 	}
 }

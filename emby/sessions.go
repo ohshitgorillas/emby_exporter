@@ -30,7 +30,13 @@ type SessionInfo struct {
 }
 
 type BaseItemDto struct {
-	MediaStreams []*Mediastream
+	Id            string         `json:"Id"`
+	Name          string         `json:"Name"`
+	Type          string         `json:"Type"`
+	SeriesName    string         `json:"SeriesName"`
+	RunTimeTicks  int64          `json:"RunTimeTicks"`
+	MediaType     string         `json:"MediaType"`
+	MediaStreams  []*Mediastream `json:"MediaStreams"`
 }
 
 type Mediastream struct {
